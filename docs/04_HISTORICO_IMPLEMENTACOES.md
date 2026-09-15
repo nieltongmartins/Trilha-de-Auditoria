@@ -116,7 +116,7 @@ Utilizar:
 | Fase | Descrição | Status | Commits |
 |---|---|---|---:|
 | F1 | Fundação e Banco de Auditoria | 🟢 CONCLUÍDA | 2 |
-| F2 | Motor Excel e Comparação | ⬜ NÃO INICIADA | 0 |
+| F2 | Motor Excel e Comparação | 🟢 CONCLUÍDA | 3 |
 | F3 | Auditor Local Incremental | ⬜ NÃO INICIADA | 0 |
 | F4 | Microsoft Graph / SharePoint | ⬜ NÃO INICIADA | 0 |
 | F5 | Interface e Relatório | ⬜ NÃO INICIADA | 0 |
@@ -128,19 +128,19 @@ Utilizar:
 
 Fases concluídas:
 
-1 de 6
+2 de 6
 
 Progresso funcional inicial:
 
-Fase 1 concluída.
+Fases 1 e 2 concluídas.
 
 Fase atual:
 
-F1 — Fundação e Banco de Auditoria concluída.
+F2 — Motor Excel e Comparação concluída.
 
 Próxima fase prevista:
 
-F2 — Motor Excel e Comparação, aguardando autorização.
+F3 — Auditor Local Incremental, aguardando autorização.
 
 ---
 
@@ -288,13 +288,13 @@ projeto.
 
 ## F2 — Motor Excel e Comparação
 
-**Status:** ⬜ NÃO INICIADA
+**Status:** 🟢 CONCLUÍDA
 
-**Data de início:** —
+**Data de início:** 15/09/2026
 
-**Data de conclusão:** —
+**Data de conclusão:** 15/09/2026
 
-**Quantidade de commits:** 0
+**Quantidade de commits:** 3 (implementação, encerramento e correção de fixtures)
 
 ### Objetivo
 
@@ -303,27 +303,87 @@ determinística entre versões consecutivas.
 
 ### Implementado
 
-Ainda não iniciado.
+- leitor `.xlsx` baseado em `openpyxl`, exclusivamente em modo de leitura;
+- preservação de fórmulas por meio de `data_only=False`;
+- snapshots lógicos de todas as abas, contendo células não vazias e seus
+  valores tipados;
+- comparação independente de banco, SharePoint, checkpoint e relatório;
+- detecção de ADD, DEL e MOD em células e em abas adicionadas ou removidas;
+- distinção entre vazio, zero e booleano `False`;
+- resultado determinístico ordenado por aba, linha e coluna;
+- geração temporária de quatro versões locais controladas durante os testes,
+  sem armazenar arquivos binários no repositório.
+
+### Arquivos criados
+
+- `app/excel/__init__.py`, `app/excel/reader.py` e
+  `app/excel/comparator.py`;
+- `tests/conftest.py`, `tests/test_excel_reader.py` e
+  `tests/test_excel_comparator.py`.
 
 ### Testes executados
 
-Nenhum.
+Comando:
+
+`pytest -q`
+
+Resultado:
+
+`16 passed in 0.38s`
+
+Comandos adicionais:
+
+- `python -m compileall -q app main.py tests` — concluído com código 0;
+- `git diff --check` — concluído sem erros.
+
+### Critérios de aceite
+
+[x] Reader funcional;
+
+[x] fórmulas preservadas;
+
+[x] ADD correto;
+
+[x] DEL correto;
+
+[x] MOD correto;
+
+[x] zero tratado corretamente;
+
+[x] `False` tratado corretamente;
+
+[x] múltiplas abas funcionam;
+
+[x] snapshots iguais retornam zero diferenças;
+
+[x] resultado determinístico;
+
+[x] testes automatizados passam.
 
 ### Commits
 
-Nenhum.
+`871d31c` — Implementa motor de comparação Excel.
+
+`d6703b3` — Registra conclusão da Fase 2.
+
+O terceiro commit remove os quatro arquivos `.xlsx` binários do repositório e
+passa a gerá-los temporariamente durante os testes, atendendo à restrição da
+plataforma de commits sem reduzir a cobertura dos cenários controlados. Seu
+identificador é informado no relatório da execução, pois um commit não pode
+registrar o próprio hash em seu conteúdo.
 
 ### Problemas encontrados
 
-Nenhum.
+Nenhum bloqueio ou problema permanece.
 
 ### Pendências
 
-Aguardar conclusão e aprovação da Fase 1.
+Nenhuma pendência da Fase 2.
 
 ### Próximo passo
 
-Não autorizado.
+F3 — Auditor Local Incremental, somente após autorização do responsável pelo
+projeto.
 
 ---
 
@@ -942,19 +1002,21 @@ A presença nesta seção não significa autorização para implementação.
 
 **Versão planejada:** V1
 
-**Fase atual:** F1 — Fundação e Banco de Auditoria concluída
+**Fase atual:** F2 — Motor Excel e Comparação concluída
 
-**Implementação:** Fundação executável e persistência SQLite implementadas
+**Implementação:** Fundação, persistência SQLite e comparação Excel implementadas
 
-**Fases concluídas:** 1/6
+**Fases concluídas:** 2/6
 
 **Commits da Fase 1:** 2 (incluindo o encerramento documental)
+
+**Commits da Fase 2:** 3 (incluindo o encerramento e a correção de fixtures)
 
 **Bloqueios:** 0
 
 **Próxima ação:**
 
-Iniciar F2 — Motor Excel e Comparação somente após autorização do responsável
+Iniciar F3 — Auditor Local Incremental somente após autorização do responsável
 pelo projeto.
 
 ---
