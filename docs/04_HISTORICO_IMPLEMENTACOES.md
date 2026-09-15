@@ -118,7 +118,7 @@ Utilizar:
 | F1 | Fundação e Banco de Auditoria | 🟢 CONCLUÍDA | 2 |
 | F2 | Motor Excel e Comparação | 🟢 CONCLUÍDA | 4 |
 | F3 | Auditor Local Incremental | 🟢 CONCLUÍDA | 2 |
-| F4 | Microsoft Graph / SharePoint | 🔴 BLOQUEADA | 2 |
+| F4 | Microsoft Graph / SharePoint | 🔴 BLOQUEADA | 3 |
 | F5 | Interface e Relatório | ⬜ NÃO INICIADA | 0 |
 | F6 | Robustez e Preparação para Produção | ⬜ NÃO INICIADA | 0 |
 
@@ -480,7 +480,7 @@ responsável pelo projeto.
 
 **Data de conclusão:** —
 
-**Quantidade de commits:** 2 (implementação testável e registro do bloqueio)
+**Quantidade de commits:** 3 (limite da fase atingido)
 
 ### Objetivo
 
@@ -586,10 +586,30 @@ operacional.
 - confirmar enumeração e download das versões secundárias;
 - registrar metadados reais e executar a auditoria controlada.
 
+### Nova tentativa de validação — 15/09/2026
+
+O estado do repositório e o histórico foram novamente inspecionados. As cinco
+variáveis `SHAREPOINT_TENANT_ID`, `SHAREPOINT_CLIENT_ID`,
+`SHAREPOINT_CLIENT_SECRET`, `SHAREPOINT_SITE_ID` e `SHAREPOINT_DRIVE_ID`
+continuam ausentes no ambiente. Nenhuma chamada ao SharePoint foi tentada sem
+credenciais, e nenhuma operação de escrita foi realizada.
+
+Testes executados nesta tentativa:
+
+- `pytest -q` — `28 passed in 0.96s`;
+- `python -m compileall -q app main.py tests` — concluído com código 0;
+- `git diff --check` — concluído sem erros antes da atualização documental.
+
+O bloqueio permanece inalterado. O terceiro e último commit permitido para a
+F4 registra esta nova verificação; seu identificador é informado no relatório
+da execução, pois um commit não pode registrar o próprio hash em seu conteúdo.
+Novas alterações da F4 não devem ser realizadas sem decisão explícita sobre o
+limite de commits da fase.
+
 ### Próximo passo
 
-Retomar somente a validação controlada da F4 após remoção do bloqueio. Não
-iniciar a F5.
+Retomar somente a validação controlada da F4 após remoção do bloqueio e decisão
+do responsável sobre o limite de commits já atingido. Não iniciar a F5.
 
 ---
 
@@ -837,42 +857,45 @@ curto e controlável.
 
 # 16. REGISTRO DE BLOQUEIOS
 
-Nenhum bloqueio registrado até o momento.
+## BLOQ-001 — Validação controlada do SharePoint indisponível
 
-Quando necessário utilizar:
+**Data:** 15/09/2026
 
-## BLOQ-XXX — Título
+**Fase:** F4 — Microsoft Graph / SharePoint
 
-**Data:**
-
-**Fase:**
-
-**Status:**
+**Status:** ATIVO
 
 ### Problema
 
-[...]
+Não é possível executar a prova real obrigatória de leitura de uma planilha
+controlada, incluindo enumeração e recuperação de versões secundárias.
 
 ### Causa
 
-[...]
+O ambiente não possui as cinco variáveis de configuração SharePoint nem acesso
+ao cenário corporativo controlado.
 
 ### Impacto
 
-[...]
+A F4 não atende aos critérios de aceite que exigem validação real e permanece
+bloqueada. A F5 não está autorizada.
 
 ### Alternativas
 
-1. [...]
-2. [...]
+1. Disponibilizar credenciais de aplicação com menor privilégio e uma planilha
+   controlada no ambiente.
+2. Executar o teste controlado externamente e fornecer evidências técnicas dos
+   endpoints, metadados e versões recuperadas.
 
 ### Recomendação
 
-[...]
+Validar uma única planilha controlada com permissões mínimas de leitura. Como a
+F4 atingiu três commits, obter também decisão explícita do responsável antes de
+qualquer novo commit nessa fase.
 
 ### Decisão
 
-Aguardando responsável / Resolvido.
+Aguardando responsável.
 
 ---
 
@@ -1106,7 +1129,7 @@ núcleo concluídas; validação real ainda não executada
 
 **Fases concluídas:** 3/6
 
-**Commits da Fase 4:** 2 (implementação e registro do bloqueio)
+**Commits da Fase 4:** 3 (limite da fase atingido)
 
 **Bloqueios:** 1
 
