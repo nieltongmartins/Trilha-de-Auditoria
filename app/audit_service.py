@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from app.database import Database
 from app.excel.comparator import CellChange, compare_snapshots
+from app.excel.formulas import normalize_formula_value
 from app.excel.reader import CellValue, Snapshot, read_workbook
 from app.integrity import sha256_file
 from app.models import AuditExecutionStatus, ProcessedVersionStatus
@@ -529,7 +530,8 @@ class AuditService:
 
     @staticmethod
     def _serialize(value: CellValue) -> str | None:
-        return None if value is None else str(value)
+        normalized = normalize_formula_value(value)
+        return None if normalized is None else str(normalized)
 
     def _persist_comparison(
         self,

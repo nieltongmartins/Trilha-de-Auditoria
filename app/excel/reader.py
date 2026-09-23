@@ -24,6 +24,8 @@ from openpyxl.utils.datetime import (
     from_excel,
 )
 
+from app.excel.formulas import normalize_formula_value
+
 
 logger = logging.getLogger("auditoria_excel.reader")
 
@@ -65,7 +67,7 @@ def _read_openpyxl(path: Path) -> Snapshot:
             for row in worksheet.iter_rows():
                 for cell in row:
                     if cell.value is not None:
-                        cells[cell.coordinate] = cell.value
+                        cells[cell.coordinate] = normalize_formula_value(cell.value)
             snapshot[worksheet.title] = cells
         return snapshot
     finally:

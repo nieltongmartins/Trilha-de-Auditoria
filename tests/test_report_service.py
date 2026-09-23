@@ -1,8 +1,10 @@
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.worksheet.formula import ArrayFormula
 import pytest
 
+from app.audit_service import AuditService
 from app.database import Database
 from app.report_service import ReportService, ReportValidationError
 
@@ -79,6 +81,39 @@ def test_report_can_be_regenerated_and_rejects_unknown_spreadsheet(
     assert second.is_file()
     with pytest.raises(ValueError, match="não encontrada"):
         service.generate(999)
+
+
+def test_array_formula_is_persisted_and_reported_as_readable_text(
+    populated_database, tmp_path: Path
+) -> None:
+    database, spreadsheet_id = populated_database
+    connection = database.connection
+    version_id = connection.execute(
+        "SELECT id FROM versao_processada WHERE planilha_id=?", (spreadsheet_id,)
+    ).fetchone()[0]
+    value = AuditService._serialize(
+        ArrayFormula(ref="D2:D100", text="=SUM(E2:E100)")
+    )
+    connection.execute(
+        """INSERT INTO alteracao
+           (versao_processada_id, planilha_id, tipo, aba, endereco,
+            valor_anterior, valor_novo) VALUES (?, ?, 'ADD', 'Dados', 'D2', NULL, ?)""",
+        (version_id, spreadsheet_id, value),
+    )
+    connection.commit()
+
+    stored = connection.execute(
+        "SELECT valor_novo FROM alteracao WHERE endereco='D2'"
+    ).fetchone()[0]
+    report = ReportService(connection, tmp_path / "reports").generate(spreadsheet_id)
+    workbook = load_workbook(report, data_only=False)
+    exported = workbook["Alterações_001"]["K4"].value
+
+    assert stored == exported == (
+        'ARRAYFORMULA|{"ref":"D2:D100","text":"=SUM(E2:E100)"}'
+    )
+    assert "object at 0x" not in stored
+    assert "object at 0x" not in exported
 
 
 def test_report_is_deterministically_regenerated_from_database_only(

@@ -5,6 +5,7 @@ from functools import lru_cache
 import re
 
 from app.excel.reader import CellValue, Snapshot
+from app.excel.formulas import normalize_formula_value
 from app.models import ChangeType
 
 
@@ -71,6 +72,7 @@ def compare_snapshots(previous: Snapshot, current: Snapshot) -> list[CellChange]
         # endereços que permaneceram iguais. Somente o conjunto normalmente
         # pequeno de diferenças precisa da ordenação determinística final.
         for address, previous_value in previous_cells.items():
+            previous_value = normalize_formula_value(previous_value)
             existed = previous_value is not None
             exists = _has_content(current_cells, address)
             if existed and not exists:
@@ -82,7 +84,7 @@ def compare_snapshots(previous: Snapshot, current: Snapshot) -> list[CellChange]
                 continue
             if not existed or not exists:
                 continue
-            new_value = current_cells[address]
+            new_value = normalize_formula_value(current_cells[address])
             if not _values_equal(previous_value, new_value):
                 sheet_changes.append(
                     CellChange(
@@ -91,6 +93,7 @@ def compare_snapshots(previous: Snapshot, current: Snapshot) -> list[CellChange]
                 )
 
         for address, new_value in current_cells.items():
+            new_value = normalize_formula_value(new_value)
             if new_value is not None and not _has_content(previous_cells, address):
                 sheet_changes.append(
                     CellChange(sheet, address, ChangeType.ADD, None, new_value)
