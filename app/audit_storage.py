@@ -124,6 +124,11 @@ class AuditStorageManager:
                 for table in ("checkpoint", "execucao_auditoria", "versao_processada",
                               "alteracao", "erro_processamento"):
                     self._copy_rows(source, target, table, "planilha_id=?", (spreadsheet_id,))
+                identity = "|".join(
+                    (spreadsheet["site_id"], spreadsheet["drive_id"], spreadsheet["drive_item_id"])
+                )
+                self._copy_rows(source, target, "version_catalog", "workbook_identity=?", (identity,))
+                self._copy_rows(source, target, "version_catalog_state", "workbook_identity=?", (identity,))
                 target.commit()
                 self._check_integrity(target)
             except Exception:
@@ -156,6 +161,15 @@ class AuditStorageManager:
     def delete_individual(self, spreadsheet_id: int) -> None:
         with self._lock, self.database.connection:
             connection = self.database.connection
+            spreadsheet = connection.execute(
+                "SELECT site_id, drive_id, drive_item_id FROM planilha WHERE id=?",
+                (spreadsheet_id,),
+            ).fetchone()
+            if spreadsheet is None:
+                raise ValueError("Auditoria selecionada não existe.")
+            identity = "|".join(tuple(spreadsheet))
+            connection.execute("DELETE FROM version_catalog WHERE workbook_identity=?", (identity,))
+            connection.execute("DELETE FROM version_catalog_state WHERE workbook_identity=?", (identity,))
             for table in DEPENDENT_TABLES:
                 connection.execute(f"DELETE FROM {table} WHERE planilha_id=?", (spreadsheet_id,))
             deleted = connection.execute("DELETE FROM planilha WHERE id=?", (spreadsheet_id,))
@@ -165,6 +179,8 @@ class AuditStorageManager:
     def delete_all(self) -> None:
         with self._lock, self.database.connection:
             connection = self.database.connection
+            connection.execute("DELETE FROM version_catalog")
+            connection.execute("DELETE FROM version_catalog_state")
             for table in DEPENDENT_TABLES:
                 connection.execute(f"DELETE FROM {table}")
             connection.execute("DELETE FROM planilha")
@@ -192,6 +208,17 @@ class AuditStorageManager:
                 raise RestoreConflictError("Já existe auditoria local para esta planilha.")
             with self._lock, self.database.connection:
                 if existing:
+                    old = self.database.connection.execute(
+                        "SELECT site_id, drive_id, drive_item_id FROM planilha WHERE id=?",
+                        (existing["id"],),
+                    ).fetchone()
+                    old_identity = "|".join(tuple(old))
+                    self.database.connection.execute(
+                        "DELETE FROM version_catalog WHERE workbook_identity=?", (old_identity,)
+                    )
+                    self.database.connection.execute(
+                        "DELETE FROM version_catalog_state WHERE workbook_identity=?", (old_identity,)
+                    )
                     for table in DEPENDENT_TABLES:
                         self.database.connection.execute(
                             f"DELETE FROM {table} WHERE planilha_id=?", (existing["id"],)
@@ -214,6 +241,11 @@ class AuditStorageManager:
                     self._insert_row(destination, "alteracao", row, {"id"}, {"planilha_id": new_spreadsheet_id, "versao_processada_id": version_ids[row["versao_processada_id"]]})
                 for row in source.execute("SELECT * FROM erro_processamento ORDER BY id"):
                     self._insert_row(destination, "erro_processamento", row, {"id"}, {"planilha_id": new_spreadsheet_id, "execucao_id": execution_ids[row["execucao_id"]]})
+                for row in source.execute("SELECT * FROM version_catalog ORDER BY id"):
+                    self._insert_row(destination, "version_catalog", row, {"id"})
+                catalog_state = source.execute("SELECT * FROM version_catalog_state").fetchone()
+                if catalog_state:
+                    self._insert_row(destination, "version_catalog_state", catalog_state, set())
             return new_spreadsheet_id
         except sqlite3.DatabaseError as error:
             raise BackupError(f"Backup individual corrompido: {error}") from error
@@ -234,7 +266,7 @@ class AuditStorageManager:
             self._check_integrity(source)
             if source.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
                 raise BackupError("Versão de schema incompatível.")
-            required = {"planilha", "checkpoint", "execucao_auditoria", "versao_processada", "alteracao", "erro_processamento"}
+            required = {"planilha", "checkpoint", "execucao_auditoria", "versao_processada", "alteracao", "erro_processamento", "version_catalog", "version_catalog_state"}
             present = {row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if not required <= present:
                 raise BackupError("Backup completo não contém o schema canônico.")

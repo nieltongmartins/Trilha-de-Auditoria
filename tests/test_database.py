@@ -123,7 +123,7 @@ def test_initialize_migrates_legacy_database_and_preserves_data(tmp_path: Path) 
         assert row["url_origem"] is None
         assert row["versao_atual"] == 0
         assert row["hash_origem"] is None
-        assert database.connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert database.connection.execute("PRAGMA user_version").fetchone()[0] == 3
 
 
 def test_schema_migration_is_idempotent(tmp_path: Path) -> None:
