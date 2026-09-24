@@ -112,6 +112,39 @@ CREATE TABLE IF NOT EXISTS erro_processamento (
         REFERENCES planilha (id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS version_catalog (
+    id INTEGER PRIMARY KEY,
+    workbook_identity TEXT NOT NULL,
+    technical_version_id TEXT NOT NULL,
+    version_label TEXT NOT NULL,
+    created_at_sharepoint TEXT,
+    is_current_snapshot INTEGER NOT NULL DEFAULT 0
+        CHECK (is_current_snapshot IN (0, 1)),
+    discovered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    author TEXT,
+    author_email TEXT,
+    author_login TEXT,
+    comment TEXT,
+    size INTEGER CHECK (size IS NULL OR size >= 0),
+    source_url TEXT,
+    CONSTRAINT uq_version_catalog_identity
+        UNIQUE (workbook_identity, technical_version_id)
+);
+
+CREATE TABLE IF NOT EXISTS version_catalog_state (
+    workbook_identity TEXT PRIMARY KEY,
+    last_historical_id TEXT,
+    last_historical_label TEXT,
+    last_known_current_id TEXT NOT NULL,
+    last_known_current_label TEXT NOT NULL,
+    catalog_count INTEGER NOT NULL CHECK (catalog_count >= 0),
+    last_sync_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    catalog_status TEXT NOT NULL CHECK (
+        catalog_status IN ('VALID', 'NEEDS_RECONCILIATION', 'INVALID')
+    )
+);
+
 CREATE INDEX IF NOT EXISTS idx_versao_planilha
     ON versao_processada (planilha_id, data_processamento);
 CREATE INDEX IF NOT EXISTS idx_alteracao_planilha
@@ -120,12 +153,14 @@ CREATE INDEX IF NOT EXISTS idx_execucao_planilha
     ON execucao_auditoria (planilha_id, inicio);
 CREATE INDEX IF NOT EXISTS idx_erro_execucao
     ON erro_processamento (execucao_id);
+CREATE INDEX IF NOT EXISTS idx_version_catalog_order
+    ON version_catalog (workbook_identity, CAST(technical_version_id AS INTEGER));
 """
 
 # Colunas acrescentadas ao modelo depois da criação dos primeiros bancos F1.
 # CREATE TABLE IF NOT EXISTS não evolui uma tabela que já existe, portanto cada
 # acréscimo precisa permanecer registrado como uma migração explícita.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 VERSION_PROCESSED_MIGRATIONS = {
     "autor_email": "TEXT",
     "autor_login": "TEXT",

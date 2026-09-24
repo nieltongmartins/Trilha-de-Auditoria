@@ -20,6 +20,7 @@ from app.models import AuditExecutionStatus
 from app.progress import SmoothVersionProgress
 from app.report_artifacts import ReportArtifactManager
 from app.sources.base import SpreadsheetInfo, VersionInfo, VersionSource
+from app.version_catalog import VersionCatalog
 
 if TYPE_CHECKING:
     from app.audit_service import AuditResult
@@ -58,6 +59,7 @@ class AuditApplication(ttk.Frame):
         self.save_configuration = save_configuration
         self.reports_directory = Path(reports_directory)
         self.storage = AuditStorageManager(database, backups_directory)
+        self.version_catalog = VersionCatalog(database)
         self._startup_log("criar_audit_storage")
         self.report_artifacts = ReportArtifactManager(
             getattr(database, "connection", database), self.reports_directory
@@ -570,11 +572,10 @@ class AuditApplication(ttk.Frame):
             return
 
         if self._cached_versions(spreadsheet) is None:
-            row = self._database_row(spreadsheet)
-            self._begin_version_scan(row["versao_numero"] if row else None)
+            self.status.set("Carregando catálogo local...")
 
         self._start_work(
-            "Consultando histórico de versões no SharePoint...",
+            "Verificando novas versões no SharePoint...",
             lambda: self._spreadsheet_status(spreadsheet),
             self._show_status_finished,
         )
@@ -586,20 +587,23 @@ class AuditApplication(ttk.Frame):
         checkpoint = row["versao_numero"] if row else None
         cached = self._cached_versions(spreadsheet)
         if cached is None:
-            list_versions = getattr(self.source, "list_versions")
-            try:
-                versions = tuple(
-                    list_versions(
-                        spreadsheet,
-                        progress_callback=self._version_scan_updates.put,
-                        checkpoint_id=row["versao_id"] if row else None,
-                        checkpoint_label=checkpoint,
-                    )
+            catalog = getattr(self, "version_catalog", None)
+            if catalog is None:
+                catalog = VersionCatalog(self.database)
+                self.version_catalog = catalog
+            local = catalog.load(spreadsheet)
+            if local is not None:
+                self._report_updates.put(
+                    f"{len(local):,} versões carregadas localmente. Verificando novas versões..."
                 )
-            except TypeError:
-                # Compatibilidade com fontes alternativas que ainda implementem
-                # a assinatura antiga do protocolo VersionSource.
-                versions = tuple(list_versions(spreadsheet))
+            result = catalog.sync(
+                spreadsheet, self.source, self._version_scan_updates.put
+            )
+            versions = result.versions
+            if result.source == "local_only":
+                self._report_updates.put("Catálogo atualizado — nenhuma versão nova.")
+            elif result.source == "delta":
+                self._report_updates.put(f"{result.new_versions} novas versões encontradas.")
             self._store_versions(spreadsheet, versions)
         else:
             versions = cached

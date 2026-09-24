@@ -640,6 +640,46 @@ class BrowserSharePointSource:
             )
         )
 
+    def get_current_version(self, spreadsheet: SpreadsheetInfo) -> VersionInfo:
+        """Obtém somente o watermark atual, sem acessar ``File/Versions``."""
+        self._validate_spreadsheet(spreadsheet)
+        metadata = self._file_metadata(spreadsheet)
+        unique_id = metadata.get("UniqueId")
+        if not isinstance(unique_id, str) or unique_id.lower() != spreadsheet.drive_item_id.lower():
+            raise SharePointReadError("UniqueId atual diverge da identidade da planilha")
+        version_id = metadata.get("UIVersion")
+        label = metadata.get("UIVersionLabel")
+        if not isinstance(version_id, int) or not isinstance(label, str):
+            raise SharePointReadError("Arquivo atual sem UIVersion/UIVersionLabel")
+        author = metadata.get("ModifiedBy")
+        return VersionInfo(
+            id=str(version_id), number=label,
+            modified_at=metadata.get("TimeLastModified") if isinstance(metadata.get("TimeLastModified"), str) else None,
+            author=author.get("Title") if isinstance(author, Mapping) and isinstance(author.get("Title"), str) else None,
+            author_email=author.get("Email") if isinstance(author, Mapping) and isinstance(author.get("Email"), str) else None,
+            author_login=author.get("LoginName") if isinstance(author, Mapping) and isinstance(author.get("LoginName"), str) else None,
+            size=self._size(metadata), source_url=spreadsheet.path, is_current=True,
+        )
+
+    def list_versions_delta(
+        self,
+        spreadsheet: SpreadsheetInfo,
+        anchor_id: str,
+        anchor_label: str,
+        progress_callback: Callable[[int], None] | None = None,
+    ) -> tuple[VersionInfo, ...]:
+        """Enumera uma cauda inclusiva estrita, ancorada no catálogo local."""
+        try:
+            technical_id = int(anchor_id)
+        except (TypeError, ValueError) as error:
+            raise SharePointReadError("anchor técnico inválido") from error
+        # Não usa o fallback interno de list_versions: o catálogo decide de
+        # forma explícita se uma inconsistência justifica reconstrução completa.
+        return self._list_versions(
+            spreadsheet, progress_callback,
+            checkpoint=(technical_id, anchor_label),
+        )
+
     def list_versions(
         self,
         spreadsheet: SpreadsheetInfo,
